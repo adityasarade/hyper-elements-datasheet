@@ -32,6 +32,7 @@ export type Characteristic = { group?: string; parameter: string; symbol?: strin
 /** A typical-performance chart: the typical error at each x, and the ± limit around it. */
 export type Curve = { title: string; x: string; y: string; points: Array<{ x: number; typ: number; limit: number }> };
 export type I2cMode = "Standard" | "Fast" | "Fast-mode Plus";
+type I2c = { mode: I2cMode; notes: string[]; pullUpOhms?: number; busCapacitancePf?: number };
 export type Order = { part: string; description: string; pack: string };
 export type Revision = { rev: string; date: string; changes: string };
 
@@ -50,14 +51,17 @@ export type Datasheet = {
   pins: Pin[];
   ratings: Rating[];
   characteristics: Characteristic[];
+  characteristicsNote?: string;
   curves: Curve[];
-  i2c: { mode: I2cMode; notes: string[] };
+  i2c: I2c;
   application: string[];
   ordering: Order[];
   revisions: Revision[];
 };
 
 export type WrenDatasheetProps = Partial<Datasheet> & { size?: "A4" | "Letter" };
+
+export const DEFAULT_CHARACTERISTICS_NOTE = "Limits are guaranteed by design and characterisation.";
 
 export const WR2: Datasheet = {
   part: "WR-2",
@@ -115,6 +119,7 @@ export const WR2: Datasheet = {
     { group: "Interface", parameter: "I²C clock", symbol: "f_SCL", max: "400", unit: "kHz" },
     { group: "Interface", parameter: "Start-up time", symbol: "t_ST", conditions: "Power on to first reading", typ: "2", max: "5", unit: "ms" },
   ],
+  characteristicsNote: DEFAULT_CHARACTERISTICS_NOTE,
   curves: [
     {
       title: "Temperature error",
@@ -150,9 +155,11 @@ export const WR2: Datasheet = {
   ],
   i2c: {
     mode: "Fast",
+    pullUpOhms: 2200,
+    busCapacitancePf: 100,
     notes: [
       "WR-2 is an I²C target. It answers at 0x76 with ADDR low, as shipped, and at 0x77 with ADDR high, so two boards can share a bus.",
-      "SCL, SDA and INT are open drain. Pull each up to 3.3 V on the host: 4.7 kΩ suits a bus of up to 200 pF at 400 kHz.",
+      "INT is open drain and needs a pull-up if used.",
     ],
   },
   application: [
@@ -654,11 +661,47 @@ function BoardFigure({ d, width }: { d: Datasheet; width: number }) {
 /* ------------------------------------------------------------------------------------------------ */
 
 const STEPS = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100];
-const minus = (n: number, digits: number) => {
-  const text = Math.abs(n).toFixed(digits);
-  return n < 0 ? `−${text}` : n > 0 ? `+${text}` : "0";
+const tickLabel = (n: number, step: number, signed = false) => {
+  if (n === 0) return "0";
+  const magnitude = Math.abs(n);
+  const digits = Math.min(2, String(step).split(".")[1]?.length ?? 0);
+  const text = magnitude >= 1e5 ? magnitude.toExponential(1) : magnitude.toFixed(digits);
+  return `${n < 0 ? "−" : signed ? "+" : ""}${text}`;
 };
-const decimals = (step: number) => (Number.isInteger(step) ? 0 : String(step).split(".")[1].length);
+
+/** Share the chart's numeric checks between the template and the standalone gallery component. */
+export function prepareCurve(points: Curve["points"]) {
+  if (points.length < 2) return { error: ": use at least two points." };
+  const seen = new Map<number, number>();
+  for (const [i, point] of points.entries()) {
+    for (const key of ["x", "typ", "limit"] as const) {
+      if (!Number.isFinite(point[key])) return { error: `[${i}].${key}: use a finite number.` };
+    }
+    if (point.limit < 0) return { error: `[${i}].limit: use a non-negative limit.` };
+    const first = seen.get(point.x);
+    if (first !== undefined) return { error: `[${i}].x: duplicate x-value ${point.x}, already used at points[${first}].x.` };
+    seen.set(point.x, i);
+  }
+
+  const pts = [...points].sort((a, b) => a.x - b.x);
+  const x0 = pts[0].x;
+  const x1 = pts[pts.length - 1].x;
+  const span = x1 - x0;
+  const reach = Math.max(...pts.map((p) => Math.max(p.limit, Math.abs(p.typ)))) * 1.12;
+  if (reach === 0) return { error: ": all typical errors and limits are zero." };
+  if (!Number.isFinite(span) || !Number.isFinite(reach)) return { error: ": the x or y range is too large to plot. Use a smaller unit scale." };
+  const xFraction = (x: number) => (x - x0) / span;
+  if (pts.slice(1).some((p, i) => xFraction(p.x) - xFraction(pts[i].x) <= Number.EPSILON)) {
+    return { error: ": some x-values are too close relative to the full range to draw a curve." };
+  }
+
+  const xStep = STEPS.find((step) => span / step <= 7) ?? span / 7;
+  const yStep = STEPS.find((step) => Math.ceil(reach / step) <= 3) ?? reach / 3;
+  const yTicks = Math.min(3, Math.ceil(reach / yStep));
+  const yMax = yTicks * yStep;
+  if (!Number.isFinite(yMax)) return { error: ": the y range is too large to plot. Use a smaller unit scale." };
+  return { pts, x0, x1, xFraction, xStep, yStep, yTicks, yMax };
+}
 
 /** A smooth line through points ordered in x that never overshoots them: monotone cubic (Fritsch and Carlson), as Béziers. */
 const smooth = (points: Pt[]) => {
@@ -688,33 +731,36 @@ const smooth = (points: Pt[]) => {
 };
 
 function CurveChart({ curve, width, height }: { curve: Curve; width: number; height: number }) {
+  const chart = prepareCurve(curve.points);
+  if (chart.error !== undefined) {
+    return <Column style={{ width, height }}><Text style={{ fontSize: 9.5, color: QUIET }}>Chart unavailable for these points.</Text></Column>;
+  }
+  const { pts, x0, x1, xFraction, xStep, yStep, yTicks, yMax } = chart;
   const pen = new Pen();
   const tags: Tag[] = [];
-  const pts = [...curve.points].sort((a, b) => a.x - b.x);
-  const [x0, x1] = [pts[0].x, pts[pts.length - 1].x];
-  const reach = Math.max(...pts.map((p) => Math.max(p.limit, Math.abs(p.typ)))) * 1.12;
-  const yStep = STEPS.find((k) => Math.ceil(reach / k) <= 3) ?? 100;
-  const yMax = Math.ceil(reach / yStep) * yStep;
-  const xStep = STEPS.find((k) => (x1 - x0) / k <= 7) ?? 100;
   const L = 36;
   const R = width - 6;
   const T = 22;
   const B = height - 30;
-  const X = (v: number) => L + ((v - x0) / (x1 - x0)) * (R - L);
-  const Y = (v: number) => T + ((yMax - v) / (2 * yMax)) * (B - T);
+  const X = (v: number) => L + xFraction(v) * (R - L);
+  const Y = (v: number) => T + (0.5 - v / yMax / 2) * (B - T);
 
-  const yTicks = Math.round(yMax / yStep);
   for (let i = -yTicks; i <= yTicks; i++) {
     const v = i * yStep;
     const y = Y(v);
     pen.line(L, y, R, y, i === 0 ? INK : RULE, i === 0 ? 0.75 : 0.6);
-    tags.push({ x: L - 6, y, text: minus(v, decimals(yStep)), align: "right", w: 34, size: 7.5, color: QUIET });
+    tags.push({ x: L - 6, y, text: tickLabel(v, yStep, true), align: "right", w: 34, size: 7.5, color: QUIET });
   }
-  for (let i = Math.ceil(x0 / xStep - 1e-9); i * xStep <= x1 + 1e-9; i++) {
-    const v = i * xStep;
+  const firstTick = Math.ceil(x0 / xStep - 1e-9);
+  let lastTick: number | undefined;
+  for (let i = 0; i <= 7; i++) {
+    const v = (firstTick + i) * xStep;
+    const position = xFraction(v);
+    if (v === lastTick || !Number.isFinite(position) || position < -1e-9 || position > 1 + 1e-9) continue;
+    lastTick = v;
     pen.line(X(v), T, X(v), B, RULE, 0.6);
     pen.line(X(v), B, X(v), B + 3, INK, 0.75);
-    tags.push({ x: X(v), y: B + 10, text: minus(v, decimals(xStep)).replace("+", ""), align: "center", w: 30, size: 7.5, color: QUIET });
+    tags.push({ x: X(v), y: B + 10, text: tickLabel(v, xStep), align: "center", w: 30, size: 7.5, color: QUIET });
   }
   pen.line(L, B, R, B, INK, 0.75);
 
@@ -779,6 +825,16 @@ const I2C_TIMING: Record<I2cMode, Array<[string, string, string, string, string]
     ["t_BUF", "Bus free, STOP to START", "0.5", "", "µs"],
   ],
 };
+
+const I2C_RISE_LIMIT_NS: Record<I2cMode, number> = { Standard: 1000, Fast: 300, "Fast-mode Plus": 120 };
+
+export function i2cPullUp(i2c: I2c) {
+  const ohms = i2c.pullUpOhms ?? (i2c.mode === "Fast-mode Plus" ? 1000 : 2200);
+  const capacitancePf = i2c.busCapacitancePf ?? 100;
+  // UM10204 measures the edge from 30% to 70% of VDD. Ω × pF gives ps.
+  const riseNs = 0.8473 * ohms * capacitancePf / 1000;
+  return { ohms, capacitancePf, riseNs, maxRiseNs: I2C_RISE_LIMIT_NS[i2c.mode] };
+}
 
 /** A waveform as segments of time: high, low, or data (either), with what the data is. */
 type Level = "H" | "L" | "D";
@@ -866,7 +922,7 @@ function TimingDiagram({ width }: { width: number }) {
 /* Figure 4: the typical application, its wiring drawn from the pins' types                          */
 /* ------------------------------------------------------------------------------------------------ */
 
-function Schematic({ d, width }: { d: Datasheet; width: number }) {
+function Schematic({ d, pullUpOhms }: { d: Datasheet; pullUpOhms: number }) {
   const pen = new Pen();
   const tags: Tag[] = [];
   const numbered = d.pins.map((p, i) => ({ ...p, n: i + 1 }));
@@ -874,6 +930,8 @@ function Schematic({ d, width }: { d: Datasheet; width: number }) {
   const ground = numbered.filter((p) => p.type === "Ground");
   const signals = numbered.filter((p) => p.type !== "Power" && p.type !== "Ground");
   const pulled = signals.filter((p) => p.pullUp);
+  const resistance = String(pullUpOhms / 1000);
+  const resistorLabel = pullUpOhms < 1000 ? `${pullUpOhms}R` : resistance.includes(".") ? resistance.replace(".", "k") : `${resistance}k`;
   const row = 24;
   const rail = 20;
   const top = 58;
@@ -952,7 +1010,7 @@ function Schematic({ d, width }: { d: Datasheet; width: number }) {
     dot(x, rail);
     dot(x, y);
     tags.push({ x: x + 7, y: r0 + 5, text: `R${i + 1}`, align: "left", w: 26, size: 7.5, weight: 600 });
-    tags.push({ x: x + 7, y: r0 + 15, text: "4k7", align: "left", w: 26, size: 7.5, color: QUIET });
+    tags.push({ x: x + 7, y: r0 + 15, text: resistorLabel, align: "left", w: 27, size: 7.5, color: QUIET });
   });
   // Decoupling: C1 from the rail to ground, by the part.
   const capY = (top + bottom) / 2;
@@ -1346,7 +1404,8 @@ export default function WrenWr2Datasheet(props: WrenDatasheetProps = {}) {
   const half = (W - GAP) / 2;
   const left = 236;
   const fig1 = BoardFigure({ d, width: W - left - GAP });
-  const schematic = Schematic({ d, width: W });
+  const pullUp = i2cPullUp(d.i2c);
+  const schematic = Schematic({ d, pullUpOhms: pullUp.ohms });
   const outline = DimensionDrawing({ d, width: W - 196 - GAP });
   const url = `wren.example/${d.part.toLowerCase()}`;
   const textSize = { fontSize: 11.5, lineHeight: 1.45 } as const;
@@ -1437,7 +1496,7 @@ export default function WrenWr2Datasheet(props: WrenDatasheetProps = {}) {
     <Column style={{ gap: 10 }}>
       {section(6, "Electrical characteristics", from > 0 ? "Continued" : <>T{sym("_A", 9.5)} = 25 °C and V{sym("_IN", 9.5)} = 3.3 V unless noted</>)}
       <CharacteristicsTable rows={d.characteristics.slice(from, to)} />
-      {caption("Table", 3, to < d.characteristics.length ? "Electrical characteristics, continued overleaf." : "Typical values are the median of production; limits are tested on every board.")}
+      {caption("Table", 3, to < d.characteristics.length ? "Electrical characteristics, continued overleaf." : d.characteristicsNote ?? DEFAULT_CHARACTERISTICS_NOTE)}
     </Column>
   );
   const performance = (
@@ -1455,6 +1514,10 @@ export default function WrenWr2Datasheet(props: WrenDatasheetProps = {}) {
   );
 
   // 3: the bus, and how to wire it.
+  const riseTime = Number(pullUp.riseNs.toPrecision(3));
+  const pullUpNote = `For SDA and SCL, use ${pullUp.ohms / 1000} kΩ pull-ups to 3.3 V. At ${pullUp.capacitancePf} pF per line, the estimated rise time is ${riseTime} ns (${pullUp.maxRiseNs} ns max, UM10204).`;
+  const [address, ...otherNotes] = d.i2c.notes;
+  const busNotes = [address, pullUpNote, ...otherNotes].filter(Boolean);
   const bus = (
     <Column style={{ gap: 12 }}>
       {section(8, "I²C interface", `${d.i2c.mode} mode`)}
@@ -1469,7 +1532,7 @@ export default function WrenWr2Datasheet(props: WrenDatasheetProps = {}) {
         {caption("Table", 4, `I²C timing, ${d.i2c.mode.toLowerCase()} mode.`)}
       </Column>
       <Column style={{ width: 236, gap: 10 }}>
-        {d.i2c.notes.map((note, i) => (
+        {busNotes.map((note, i) => (
           <Text key={i} style={textSize}>
             {nb(note)}
           </Text>
@@ -1477,7 +1540,7 @@ export default function WrenWr2Datasheet(props: WrenDatasheetProps = {}) {
       </Column>
     </Row>
   );
-  const timingH = Math.max(HEAD_H + 8 * ROW_H + 8 + CAPTION_H, d.i2c.notes.reduce((sum, n) => sum + linesOf(n, 236, 11.5) * TEXT_H + 10, -10));
+  const timingH = Math.max(HEAD_H + 8 * ROW_H + 8 + CAPTION_H, busNotes.reduce((sum, n) => sum + linesOf(n, 236, 11.5) * TEXT_H + 10, -10));
   const application = (
     <Column style={{ gap: 12 }}>
       {section(9, "Typical application")}

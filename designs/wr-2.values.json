@@ -4,7 +4,7 @@
     "module": "../templates/datasheet.tsx",
     "id": "wren.Datasheet",
     "version": "1.0.0",
-    "sha256": "1a9d81f761d135c854cef47bcae02239b2f1b6850b42889ed8fc660f920d8738"
+    "sha256": "2df20e72858731ebc9d51751ec5c2bd0f97d6307facb65d92f0dd5cbcd4875a3"
   },
   "formats": [
     "a4",
@@ -253,6 +253,7 @@
         "unit": "ms"
       }
     ],
+    "characteristicsNote": "Limits are guaranteed by design and characterisation.",
     "curves": [
       {
         "title": "Temperature error",
@@ -356,9 +357,11 @@
     ],
     "i2c": {
       "mode": "Fast",
+      "pullUpOhms": 2200,
+      "busCapacitancePf": 100,
       "notes": [
         "WR-2 is an I²C target. It answers at 0x76 with ADDR low, as shipped, and at 0x77 with ADDR high, so two boards can share a bus.",
-        "SCL, SDA and INT are open drain. Pull each up to 3.3 V on the host: 4.7 kΩ suits a bus of up to 200 pF at 400 kHz."
+        "INT is open drain and needs a pull-up if used."
       ]
     },
     "application": [

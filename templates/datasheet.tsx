@@ -8,7 +8,7 @@
  */
 import { prop } from "@hyper-elements/react";
 import { template } from "@hyper-elements/react/template";
-import WrenDatasheet, { WR2, type Datasheet } from "../src/wren-wr2-datasheet.tsx";
+import WrenDatasheet, { DEFAULT_CHARACTERISTICS_NOTE, WR2, i2cPullUp, prepareCurve, type Datasheet } from "../src/wren-wr2-datasheet.tsx";
 
 const PIN_TYPES = ["Power", "Ground", "I/O", "Input", "Output"] as const;
 const PITCH = 2.54;
@@ -28,7 +28,7 @@ export default template({
   fields: {
     part: prop.text({ label: "Part number", required: true, maxLength: 8, pattern: "^[A-Z]{1,4}-[0-9]{1,3}[A-Z]?$", guidance: "As it's printed on the board: WR-2, WR-4." }),
     name: prop.text({ label: "Name", required: true, maxLength: 26, guidance: "What it is, in two or three words: Environmental sensor." }),
-    revision: prop.text({ label: "Revision", required: true, pattern: "^[A-Z]$", guidance: "One capital letter. Add a line to the revision history for it." }),
+    revision: prop.text({ label: "Revision", required: true, pattern: "^[A-Z]$", guidance: "One capital letter. Match the latest dated entry in the revision history." }),
     date: prop.date({ label: "Date", required: true, guidance: "The revision's release date. The datasheet shows its month." }),
     summary: prop.text({ label: "Summary", required: true, maxLength: 96, guidance: "One sentence under the name: what it measures, how big it is, how it talks." }),
     highlights: prop.list(
@@ -61,7 +61,7 @@ export default template({
           name: prop.text({ label: "Name", required: true, pattern: "^[A-Z0-9][A-Z0-9_+/-]{0,5}$", guidance: "As on the silkscreen, up to six capitals: VIN, SDA, INT1." }),
           type: prop.choice(PIN_TYPES, { label: "Type", required: true, guidance: "Power pins join the supply in the schematic, ground pins go to ground, and the rest wire to the host." }),
           description: prop.text({ label: "Description", required: true, maxLength: 72 }),
-          pullUp: prop.boolean({ label: "Needs a pull-up", guidance: "Open-drain lines: the schematic draws a 4.7 kΩ resistor to 3.3 V on each." }),
+          pullUp: prop.boolean({ label: "Needs a pull-up", guidance: "The schematic draws a resistor to 3.3 V using the I²C pull-up resistance." }),
         },
         { label: "Pin" },
       ),
@@ -90,6 +90,7 @@ export default template({
       ),
       { label: "Electrical characteristics", required: true, min: 1, max: 14 },
     ),
+    characteristicsNote: prop.text({ label: "Electrical characteristics table note", default: DEFAULT_CHARACTERISTICS_NOTE, maxLength: 100 }),
     curves: prop.list(
       prop.object(
         {
@@ -105,7 +106,7 @@ export default template({
               },
               { label: "Point" },
             ),
-            { label: "Points", required: true, min: 3, max: 16, guidance: "Measured points, in any order: the line is drawn through them, the limits as a band around zero." },
+            { label: "Points", required: true, min: 3, max: 16, guidance: "Measured points with unique x-values, in any order. Give at least one nonzero typical error or limit." },
           ),
         },
         { label: "Curve" },
@@ -115,7 +116,9 @@ export default template({
     i2c: prop.object(
       {
         mode: prop.choice(["Standard", "Fast", "Fast-mode Plus"], { label: "Fastest I²C mode", required: true, guidance: "Sets the timing table: the I²C specification's limits for that mode." }),
-        notes: prop.list(prop.text({ label: "Note", maxLength: 170 }), { label: "Notes", required: true, min: 1, max: 3, guidance: "Its address, and what the bus needs." }),
+        pullUpOhms: prop.number({ label: "Pull-up resistance, Ω", integer: true, min: 100, max: 99999, guidance: "Used in the schematic and rise-time calculation. Defaults to 1 kΩ for Fast-mode Plus and 2.2 kΩ otherwise." }),
+        busCapacitancePf: prop.number({ label: "Bus capacitance per line, pF", integer: true, min: 1, max: 550, default: 100, guidance: "Maximum total capacitive load per SDA or SCL line for this example." }),
+        notes: prop.list(prop.text({ label: "Note", maxLength: 170 }), { label: "Notes", required: true, min: 1, max: 3, guidance: "The address and any other interface details. Pull-up sizing is calculated separately." }),
       },
       { label: "I²C interface", required: true },
     ),
@@ -155,6 +158,18 @@ export default template({
     const needed = perEdge * PITCH;
     if (needed > v.board.height) {
       throw new Error(`${perEdge} pads on a ${PITCH} mm pitch need an edge of at least ${needed.toFixed(1)} mm; the board is ${v.board.height} mm tall. Make it taller, or put the pads along two edges.`);
+    }
+    const { riseNs, maxRiseNs } = i2cPullUp(v.i2c);
+    if (riseNs > maxRiseNs) {
+      throw new Error(`i2c.pullUpOhms and i2c.busCapacitancePf give a rise time of ${riseNs.toPrecision(3)} ns. Reduce resistance or capacitance to meet the ${maxRiseNs} ns limit for ${v.i2c.mode}.`);
+    }
+    for (const [i, curve] of v.curves.entries()) {
+      const { error } = prepareCurve(curve.points);
+      if (error !== undefined) throw new Error(`curves[${i}].points${error}`);
+    }
+    const latest = v.revisions.reduce((newest, entry) => entry.date > newest.date ? entry : newest);
+    if (v.revision !== latest.rev) {
+      throw new Error(`revision: cover revision ${v.revision} must match the newest revisions entry (${latest.rev}, ${latest.date}).`);
     }
     return WrenDatasheet({ ...v, size: format === "letter" ? "Letter" : "A4" });
   },

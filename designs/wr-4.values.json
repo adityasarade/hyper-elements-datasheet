@@ -4,7 +4,7 @@
     "module": "../templates/datasheet.tsx",
     "id": "wren.Datasheet",
     "version": "1.0.0",
-    "sha256": "1a9d81f761d135c854cef47bcae02239b2f1b6850b42889ed8fc660f920d8738"
+    "sha256": "2df20e72858731ebc9d51751ec5c2bd0f97d6307facb65d92f0dd5cbcd4875a3"
   },
   "formats": [
     "a4",
@@ -261,6 +261,7 @@
         "unit": "ms"
       }
     ],
+    "characteristicsNote": "Limits are guaranteed by design and characterisation.",
     "curves": [
       {
         "title": "Gyroscope offset",
@@ -349,9 +350,10 @@
     ],
     "i2c": {
       "mode": "Fast-mode Plus",
+      "pullUpOhms": 1000,
+      "busCapacitancePf": 100,
       "notes": [
-        "WR-4 answers at 0x68 with SDO low and at 0x69 with SDO high. The board holds CS high, so it starts in I²C.",
-        "At 1 MHz use stronger pull-ups than the schematic shows: 2.2 kΩ suits a bus of up to 100 pF."
+        "WR-4 answers at 0x68 with SDO low and at 0x69 with SDO high. The board holds CS high, so it starts in I²C."
       ]
     },
     "application": [
