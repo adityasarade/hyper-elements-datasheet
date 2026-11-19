@@ -10,7 +10,7 @@ A small hardware company publishes a datasheet for every part and every revision
 
 ## Try it in the browser
 
-**[Open Datasheet studio](https://<your-vercel-url>)**: start from the WR-2 or the WR-4, change its part details,
+**[Open Datasheet studio](https://hyper-elements-datasheet.vercel.app)**: start from the WR-2 or the WR-4, change its part details,
 pins, board and I²C bus in six guided steps, and watch the datasheet redraw as you type. Every change goes through
 the template's own `check()`, so a value it would refuse (a board too short for its pads, pull-ups too strong for the
 bus) is named at its field before anything is drawn. Download the PDF in A4 or Letter, or the values file to use
