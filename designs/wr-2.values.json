@@ -1,0 +1,403 @@
+{
+  "version": 1,
+  "template": {
+    "module": "../templates/datasheet.tsx",
+    "id": "wren.Datasheet",
+    "version": "1.0.0",
+    "sha256": "1a9d81f761d135c854cef47bcae02239b2f1b6850b42889ed8fc660f920d8738"
+  },
+  "formats": [
+    "a4",
+    "letter"
+  ],
+  "values": {
+    "part": "WR-2",
+    "name": "Environmental sensor",
+    "revision": "C",
+    "date": "2026-03-16",
+    "summary": "Temperature, humidity, pressure and air quality on a 25 × 18 mm board, read over I²C.",
+    "highlights": [
+      {
+        "value": "±0.2 °C",
+        "label": "Temperature, 0 to 65 °C"
+      },
+      {
+        "value": "±2 %RH",
+        "label": "Humidity, 20 to 80 %RH"
+      },
+      {
+        "value": "±0.6 hPa",
+        "label": "Pressure, 300 to 1100 hPa"
+      },
+      {
+        "value": "3.4 µA",
+        "label": "Asleep, between readings"
+      }
+    ],
+    "features": [
+      "Temperature, humidity, pressure and VOC on one board",
+      "Calibrated in the factory: ±0.2 °C and ±2 %RH",
+      "Runs from 3.0 to 5.5 V; logic stays at 3.3 V",
+      "I²C up to 400 kHz, at either of two addresses",
+      "3.4 µA asleep, 0.9 mA while measuring",
+      "Castellated pads on a 2.54 mm pitch: solder it flat or fit a header"
+    ],
+    "applications": [
+      "Indoor air quality monitors",
+      "Ventilation and HVAC control",
+      "Weather stations",
+      "Greenhouse and cold-store loggers",
+      "Battery-powered sensor nodes"
+    ],
+    "description": "WR-2 measures temperature, relative humidity, barometric pressure and volatile organic compounds, and reports all four over I²C. A low-dropout regulator lets it run from 3.0 to 5.5 V while its logic stays at 3.3 V, and it sleeps at 3.4 µA between readings.",
+    "board": {
+      "width": 25,
+      "height": 18,
+      "thickness": 1.6,
+      "parts": 0.9,
+      "hole": 2.2,
+      "edges": "one"
+    },
+    "pins": [
+      {
+        "name": "VIN",
+        "type": "Power",
+        "description": "Supply, 3.0 to 5.5 V. The on-board regulator makes 3.3 V."
+      },
+      {
+        "name": "GND",
+        "type": "Ground",
+        "description": "Ground."
+      },
+      {
+        "name": "SCL",
+        "type": "Input",
+        "description": "I²C clock. Pull up to 3.3 V on the host.",
+        "pullUp": true
+      },
+      {
+        "name": "SDA",
+        "type": "I/O",
+        "description": "I²C data, open drain. Pull up to 3.3 V on the host.",
+        "pullUp": true
+      },
+      {
+        "name": "INT",
+        "type": "Output",
+        "description": "Data ready, active low, open drain.",
+        "pullUp": true
+      },
+      {
+        "name": "ADDR",
+        "type": "Input",
+        "description": "I²C address: low for 0x76, high for 0x77. Pulled low on the board."
+      }
+    ],
+    "ratings": [
+      {
+        "parameter": "Supply voltage",
+        "symbol": "V_IN",
+        "min": "−0.3",
+        "max": "6.0",
+        "unit": "V"
+      },
+      {
+        "parameter": "Voltage on SCL, SDA, INT and ADDR",
+        "symbol": "V_IO",
+        "min": "−0.3",
+        "max": "3.6",
+        "unit": "V"
+      },
+      {
+        "parameter": "Operating temperature",
+        "symbol": "T_A",
+        "min": "−40",
+        "max": "85",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Storage temperature",
+        "symbol": "T_STG",
+        "min": "−45",
+        "max": "125",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Soldering temperature, 10 s",
+        "symbol": "T_SOL",
+        "max": "260",
+        "unit": "°C"
+      },
+      {
+        "parameter": "Electrostatic discharge, human body model",
+        "symbol": "V_ESD",
+        "max": "±2",
+        "unit": "kV"
+      }
+    ],
+    "characteristics": [
+      {
+        "group": "Temperature",
+        "parameter": "Accuracy",
+        "symbol": "ΔT",
+        "conditions": "0 to 65 °C",
+        "typ": "±0.2",
+        "max": "±0.4",
+        "unit": "°C"
+      },
+      {
+        "group": "Temperature",
+        "parameter": "Accuracy",
+        "symbol": "ΔT",
+        "conditions": "−40 to 85 °C",
+        "typ": "±0.5",
+        "max": "±1.0",
+        "unit": "°C"
+      },
+      {
+        "group": "Temperature",
+        "parameter": "Resolution",
+        "typ": "0.01",
+        "unit": "°C"
+      },
+      {
+        "group": "Humidity",
+        "parameter": "Accuracy",
+        "symbol": "ΔRH",
+        "conditions": "20 to 80 %RH",
+        "typ": "±2",
+        "max": "±3",
+        "unit": "%RH"
+      },
+      {
+        "group": "Humidity",
+        "parameter": "Response time, to 63 %",
+        "symbol": "t_63",
+        "conditions": "Air at 1 m/s",
+        "typ": "8",
+        "unit": "s"
+      },
+      {
+        "group": "Pressure",
+        "parameter": "Range",
+        "symbol": "P",
+        "min": "300",
+        "max": "1100",
+        "unit": "hPa"
+      },
+      {
+        "group": "Pressure",
+        "parameter": "Accuracy",
+        "symbol": "ΔP",
+        "conditions": "0 to 65 °C",
+        "typ": "±0.6",
+        "max": "±1.0",
+        "unit": "hPa"
+      },
+      {
+        "group": "Air quality",
+        "parameter": "VOC index",
+        "min": "1",
+        "max": "500",
+        "unit": "–"
+      },
+      {
+        "group": "Supply",
+        "parameter": "Supply voltage",
+        "symbol": "V_IN",
+        "min": "3.0",
+        "typ": "3.3",
+        "max": "5.5",
+        "unit": "V"
+      },
+      {
+        "group": "Supply",
+        "parameter": "Current, asleep",
+        "symbol": "I_SLP",
+        "typ": "3.4",
+        "max": "6.0",
+        "unit": "µA"
+      },
+      {
+        "group": "Supply",
+        "parameter": "Current, measuring",
+        "symbol": "I_DD",
+        "conditions": "T, RH and P at 1 Hz",
+        "typ": "0.9",
+        "max": "1.2",
+        "unit": "mA"
+      },
+      {
+        "group": "Supply",
+        "parameter": "Current, gas heater on",
+        "symbol": "I_HT",
+        "conditions": "320 °C for 150 ms",
+        "typ": "12",
+        "max": "15",
+        "unit": "mA"
+      },
+      {
+        "group": "Interface",
+        "parameter": "I²C clock",
+        "symbol": "f_SCL",
+        "max": "400",
+        "unit": "kHz"
+      },
+      {
+        "group": "Interface",
+        "parameter": "Start-up time",
+        "symbol": "t_ST",
+        "conditions": "Power on to first reading",
+        "typ": "2",
+        "max": "5",
+        "unit": "ms"
+      }
+    ],
+    "curves": [
+      {
+        "title": "Temperature error",
+        "x": "Temperature, °C",
+        "y": "Error, °C",
+        "points": [
+          {
+            "x": -40,
+            "typ": 0.24,
+            "limit": 0.5
+          },
+          {
+            "x": -20,
+            "typ": 0.13,
+            "limit": 0.4
+          },
+          {
+            "x": 0,
+            "typ": 0.05,
+            "limit": 0.25
+          },
+          {
+            "x": 10,
+            "typ": 0.02,
+            "limit": 0.2
+          },
+          {
+            "x": 25,
+            "typ": 0,
+            "limit": 0.2
+          },
+          {
+            "x": 40,
+            "typ": -0.03,
+            "limit": 0.2
+          },
+          {
+            "x": 55,
+            "typ": -0.04,
+            "limit": 0.2
+          },
+          {
+            "x": 65,
+            "typ": -0.02,
+            "limit": 0.25
+          },
+          {
+            "x": 85,
+            "typ": 0.12,
+            "limit": 0.45
+          }
+        ]
+      },
+      {
+        "title": "Humidity error at 25 °C",
+        "x": "Relative humidity, %RH",
+        "y": "Error, %RH",
+        "points": [
+          {
+            "x": 0,
+            "typ": 1.2,
+            "limit": 3.5
+          },
+          {
+            "x": 10,
+            "typ": 0.8,
+            "limit": 3
+          },
+          {
+            "x": 20,
+            "typ": 0.4,
+            "limit": 2
+          },
+          {
+            "x": 40,
+            "typ": 0.1,
+            "limit": 2
+          },
+          {
+            "x": 60,
+            "typ": -0.3,
+            "limit": 2
+          },
+          {
+            "x": 80,
+            "typ": -0.6,
+            "limit": 2
+          },
+          {
+            "x": 90,
+            "typ": -1,
+            "limit": 2.6
+          },
+          {
+            "x": 100,
+            "typ": -1.6,
+            "limit": 3.5
+          }
+        ]
+      }
+    ],
+    "i2c": {
+      "mode": "Fast",
+      "notes": [
+        "WR-2 is an I²C target. It answers at 0x76 with ADDR low, as shipped, and at 0x77 with ADDR high, so two boards can share a bus.",
+        "SCL, SDA and INT are open drain. Pull each up to 3.3 V on the host: 4.7 kΩ suits a bus of up to 200 pF at 400 kHz."
+      ]
+    },
+    "application": [
+      "Put C1 within 5 mm of VIN, between VIN and GND.",
+      "Keep the board away from regulators, LEDs and anything else that warms the air it measures."
+    ],
+    "ordering": [
+      {
+        "part": "WR-2-C",
+        "description": "WR-2, revision C, castellated pads",
+        "pack": "Tray of 50"
+      },
+      {
+        "part": "WR-2-C-H",
+        "description": "WR-2 with a 6-way 2.54 mm header fitted",
+        "pack": "Bag of 10"
+      },
+      {
+        "part": "WR-2-C-T",
+        "description": "WR-2 on tape and reel, for pick and place",
+        "pack": "Reel of 500"
+      }
+    ],
+    "revisions": [
+      {
+        "rev": "C",
+        "date": "2026-03-16",
+        "changes": "New regulator: asleep, 3.4 µA (was 9 µA). Mounting holes now 2.2 mm."
+      },
+      {
+        "rev": "B",
+        "date": "2025-09-08",
+        "changes": "ADDR pin added, so two boards can share a bus."
+      },
+      {
+        "rev": "A",
+        "date": "2025-02-24",
+        "changes": "First release."
+      }
+    ]
+  }
+}
