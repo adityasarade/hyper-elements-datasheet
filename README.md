@@ -8,6 +8,21 @@
 
 A small hardware company publishes a datasheet for every part and every revision. Laid out by hand, the pin table and the board drawing drift apart. Here the datasheet is data: the pins, ratings, characteristics and board size are values, and every drawing is made from them. Change a pin and the board drawing, the pin table and the schematic change together. The same values render on A4 and on Letter.
 
+## Try it in the browser
+
+Open [Datasheet studio](https://<your-vercel-url>) to edit the WR-2 or WR-4, check the preview, and download a PDF or a Hyper Elements values file.
+
+![Datasheet studio showing the guided editor and live print preview](docs/studio.png)
+
+Run the studio locally from this repository.
+
+```sh
+npm ci
+npm run studio
+```
+
+Open [localhost:3000](http://localhost:3000). Save downloaded values files in `designs/` to use them with the CLI.
+
 ## Use it
 
 You need Node and npm, and `pdftoppm` from Poppler on your PATH for the page PNGs. The build fetches the fonts from Google Fonts on its first run.

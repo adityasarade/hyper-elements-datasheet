@@ -4,3 +4,6 @@ out/
 .DS_Store
 ENTRY.md
 REVISION.md
+.next/
+.vercel/
+next-env.d.ts

@@ -5,10 +5,15 @@
   "scripts": {
     "build": "tsx scripts/build.tsx && tsx scripts/render-design.tsx",
     "designs": "tsx scripts/render-design.tsx",
-    "check": "hyper-elements check src templates designs"
+    "check": "hyper-elements check src templates designs",
+    "studio": "next dev",
+    "studio:build": "next build",
+    "studio:start": "next start"
   },
   "dependencies": {
     "@hyper-elements/react": "0.5.0",
+    "@react-pdf/renderer": "4.9.0",
+    "next": "^16.4.6",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
@@ -16,7 +21,6 @@
     "@hyper-elements/cli": "^0.3.0",
     "@hyper-elements/email-clients": "*",
     "@hyper-elements/lint": "*",
-    "@react-pdf/renderer": "4.9.0",
     "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.19.2",
     "@types/react": "^19.2.0",
