@@ -1,0 +1,7 @@
+out/
+.cache/
+docs/
+ENTRY.md
+REVISION.md
+.next/
+node_modules/

@@ -34,25 +34,25 @@ function Dialog({ titleId, className, close, children }: { titleId: string; clas
 export function Welcome({ beginTour, close }: { beginTour: () => void; close: () => void }) {
   return (
     <Dialog titleId="welcome-title" className="welcome-dialog" close={close}>
-      <h2 id="welcome-title">Make a sensor datasheet from data</h2>
-      <ul className="welcome-list">
-        <li>Edit values on the left.</li>
-        <li>The datasheet redraws on the right, with every drawing made from your data.</li>
-        <li>Download the PDF when you’re ready.</li>
-      </ul>
+      <h2 id="welcome-title">A sensor datasheet, made from its data</h2>
+      <ol className="welcome-list">
+        <li>Change the part, its pins or its bus in six short steps.</li>
+        <li>The datasheet redraws as you type: the board, the pin table, the schematic and the timing all come from your values.</li>
+        <li>Download the PDF, or the values file to keep with your code.</li>
+      </ol>
       <div className="dialog-actions">
-        <button className="button button-primary" type="button" onClick={beginTour} data-focus>Take the 30-second tour <Icon name="arrow" /></button>
-        <button className="button button-secondary" type="button" onClick={close}>Skip</button>
+        <button className="button button-primary" type="button" onClick={beginTour} data-focus>Show me around</button>
+        <button className="button button-quiet" type="button" onClick={close}>Start editing</button>
       </div>
     </Dialog>
   );
 }
 
 export const tourStops = [
-  { id: "tour-steps", title: "Work through the steps", description: "Choose an example and work through the steps to edit its data." },
-  { id: "tour-pins", title: "Edit the pin list", description: "Change a pin here and the board drawing, pin table and schematic all update together." },
-  { id: "tour-preview", title: "Check the preview", description: "Use the page tabs to inspect the datasheet and open Checks to find any problems." },
-  { id: "tour-download", title: "Download your datasheet", description: "Download a PDF in the paper size you chose." },
+  { id: "tour-steps", title: "Six steps, in order", description: "Start from a part, then change its details, pins, board and bus. Each step says what it changes." },
+  { id: "tour-pins", title: "The pins drive the drawings", description: "Rename, add or reorder a pin and watch the board, the pin table and the schematic redraw together." },
+  { id: "tour-preview", title: "The datasheet, checked", description: "Every change is checked by the template. Flip through the sheets here; if something won't fit, the status shows what to fix." },
+  { id: "tour-download", title: "Take it with you", description: "Download the PDF in A4 or Letter, or the values file to keep the datasheet with your code." },
 ] as const;
 
 type Bounds = { top: number; left: number; width: number; height: number };
@@ -87,7 +87,7 @@ export function Tour({ index, setIndex, close }: { index: number; setIndex: (ind
       const top = Math.max(inset, rect.top - pad);
       const left = Math.max(inset, rect.left - pad);
       const right = Math.min(viewportWidth - inset, rect.right + pad);
-      const bottom = Math.min(viewportHeight - inset, rect.bottom + pad, top + 215);
+      const bottom = Math.min(viewportHeight - inset, rect.bottom + pad);
       const gap = 12;
       const below = bottom + gap;
       const above = top - gap - height;
@@ -128,7 +128,7 @@ export function Tour({ index, setIndex, close }: { index: number; setIndex: (ind
         <p>{stop.description}</p>
         <div className="dialog-actions">
           <button type="button" className="button button-secondary" disabled={index === 0} onClick={() => setIndex(index - 1)}>Back</button>
-          <button ref={next} data-focus type="button" className="button button-primary" onClick={last ? close : () => setIndex(index + 1)}>{last ? "Done" : "Next"} <Icon name={last ? "check" : "arrow"} /></button>
+          <button ref={next} data-focus type="button" className="button button-primary" onClick={last ? close : () => setIndex(index + 1)}>{last ? "Done" : "Next"}</button>
         </div>
       </div>
     </Dialog>
@@ -163,7 +163,7 @@ export function Checks({ diagnostics, guides, checking, close, go, retry }: {
               {item.field && item.field !== "advanced" && <code className="check-path">{item.field}</code>}
               <p>{item.message}</p>
               {item.severity !== "info" && <button type="button" className="text-button" onClick={() => go(item.field)}
-                aria-label={`Go to field: ${diagnosticLabel(item.field, guides)}`}>Go to field <Icon name="arrow" /></button>}
+                aria-label={`Go to field: ${diagnosticLabel(item.field, guides)}`}>Go to field</button>}
             </li>
           ))}
         </ul> : <p>{checking ? "Checking the latest values…" : "The datasheet passed its checks."}</p>}

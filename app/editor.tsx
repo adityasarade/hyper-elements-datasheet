@@ -18,6 +18,14 @@ function errorMatches(diagnostic: StudioDiagnostic, field: string) {
   return diagnostic.field === field;
 }
 
+/** A message for a person: without the field path the template puts first for tools ("revision: …"). */
+export function plain(message: string) {
+  const text = message
+    .replace(/^i2c\.pullUpOhms and i2c\.busCapacitancePf give/, "This resistance and capacitance give")
+    .replace(/^[a-zA-Z]+(\[\d+\])?(\.[a-zA-Z]+(\[\d+\])?)*:\s+/, "");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 function fieldState({ diagnostics, guides }: Context, field: string) {
   const control = { id: field, name: field };
   const guide = guides[field.replace(/\[\d+\]/g, "[]")];
@@ -28,7 +36,7 @@ function fieldState({ diagnostics, guides }: Context, field: string) {
     guide,
     problems: messages.length > 0 && (
       <ul className="field-problems" id={description}>
-        {messages.map((item, index) => <li key={index}>{item.message}</li>)}
+        {messages.map((item, index) => <li key={index}>{plain(item.message)}</li>)}
       </ul>
     ),
   };
@@ -40,7 +48,7 @@ type InputProps = {
   label?: string;
   labelHidden?: boolean;
   mono?: boolean;
-} & Pick<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange" | "placeholder" | "step" | "className">;
+} & Pick<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange" | "placeholder" | "step" | "className" | "aria-invalid" | "aria-describedby">;
 
 function Input({ context, field, label, labelHidden, mono, className = "", ...input }: InputProps) {
   const { attrs, guide, problems } = fieldState(context, field);
@@ -59,13 +67,13 @@ function Input({ context, field, label, labelHidden, mono, className = "", ...in
   );
 }
 
-function Select({ context, field, label, labelHidden, value, onChange, children, dot }: {
+function Select({ context, field, label, labelHidden, value, onChange, children, dot, className = "" }: {
   context: Context; field: string; label?: string; labelHidden?: boolean; value: string;
-  onChange: (value: string) => void; children: ReactNode; dot?: string;
+  onChange: (value: string) => void; children: ReactNode; dot?: string; className?: string;
 }) {
   const { attrs, guide, problems } = fieldState(context, field);
   return (
-    <div className="field">
+    <div className={`field ${className}`}>
       <label htmlFor={field} className={labelHidden ? "visually-hidden" : undefined}>{label ?? guide?.label}</label>
       <div className={dot ? "select-wrap with-dot" : "select-wrap"}>
         {dot && <span className={`type-dot ${dot}`} aria-hidden="true" />}
@@ -138,7 +146,7 @@ function PartFields({ context, draft, change }: { context: Context; draft: Draft
         <legend>Highlights</legend>
         <p className="field-hint">{context.guides.highlights.guidance}</p>
         <div className="highlight-row highlight-column-labels" aria-hidden="true">
-          <span></span><span>Value</span><span>Label</span>
+          <span>Value</span><span>Label</span>
         </div>
         {draft.highlights.map((highlight, index) => (
           <div className="highlight-row" key={index}>
@@ -188,74 +196,64 @@ function PinFields({ context, pins, change, focus }: {
 
   return (
     <div className="pin-editor" id="tour-pins">
-      <table className="pin-table" aria-label="Board pins">
-        <colgroup>
-          <col className="pin-number-col" /><col className="pin-name-col" /><col className="pin-type-col" /><col /><col className="pin-pull-col" />
-        </colgroup>
-        <thead>
-          <tr><th scope="col">#</th><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Description</th><th scope="col">Pull-up</th></tr>
-        </thead>
-        <tbody>
-          {pins.map((pin, index) => {
-            const field = `pins[${index}]`;
-            const description = fieldState(context, `${field}.description`);
-            const pullUp = fieldState(context, `${field}.pullUp`);
-            const canPullUp = pin.type === "I/O" || pin.type === "Input";
-            const pullUpHint = canPullUp ? undefined : `${field}-pull-up-hint`;
-            return (
-              <tr key={pin.key}>
-                <th scope="row" className="mono pin-number">{index + 1}</th>
-                <td>
-                  <Input context={context} field={`${field}.name`} label={`Pin ${index + 1} name`} labelHidden mono
-                    value={pin.name} onChange={(event) => update(index, { name: event.target.value.toUpperCase() })} />
-                </td>
-                <td>
-                  <Select context={context} field={`${field}.type`} label={`Pin ${index + 1} type`} labelHidden dot={pinDots[pin.type]}
-                    value={pin.type} onChange={(value) => {
-                      const type = value as Pin["type"];
-                      update(index, { type, pullUp: type === "Input" || type === "I/O" ? pin.pullUp : undefined });
-                    }}>
-                    {pinTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-                  </Select>
-                </td>
-                <td>
-                  <label htmlFor={description.attrs.id} className="visually-hidden">Pin {index + 1} description</label>
-                  <textarea {...description.attrs} aria-required="true" rows={2} maxLength={description.guide?.maxLength}
-                    value={pin.description} onChange={(event) => update(index, { description: event.target.value })} />
-                  {description.problems}
-                  <div className="pin-actions">
-                    <button type="button" className="icon-button" title="Move up" aria-label={`Move pin ${index + 1} up`}
-                      disabled={index === 0} onClick={() => move(index, -1)}><Icon name="up" /></button>
-                    <button type="button" className="icon-button" title="Move down" aria-label={`Move pin ${index + 1} down`}
-                      disabled={index === pins.length - 1} onClick={() => move(index, 1)}><Icon name="down" /></button>
-                    <button type="button" className="icon-button" title={pins.length <= min ? `At least ${min} pins are required` : "Remove pin"}
-                      aria-label={`Remove pin ${index + 1}`} disabled={pins.length <= min} onClick={() => remove(index)}><Icon name="close" /></button>
-                  </div>
-                </td>
-                <td className="pull-cell">
-                  <label htmlFor={pullUp.attrs.id} className="visually-hidden">Pin {index + 1} pull-up</label>
-                  <input {...pullUp.attrs} type="checkbox" checked={pin.pullUp ?? false} disabled={!canPullUp}
-                    aria-describedby={[pullUp.attrs["aria-describedby"], pullUpHint].filter(Boolean).join(" ") || undefined}
-                    onChange={(event) => update(index, { pullUp: event.target.checked })} />
-                  {pullUpHint && <span className="visually-hidden" id={pullUpHint}>
-                    {pin.pullUp ? "Set by the example for this open-drain output." : "Editable for I/O and input pins."}
-                  </span>}
-                  {pullUp.problems}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <ol className="pin-list" aria-label="Board pins, in pad order">
+        {pins.map((pin, index) => {
+          const field = `pins[${index}]`;
+          const description = fieldState(context, `${field}.description`);
+          const pullUp = fieldState(context, `${field}.pullUp`);
+          const canPullUp = pin.type === "I/O" || pin.type === "Input";
+          const pullUpHint = canPullUp ? undefined : `${field}-pull-up-hint`;
+          return (
+            <li key={pin.key} className="pin-row">
+              <span className="pin-number" aria-hidden="true">{index + 1}</span>
+              <Input className="pin-name" context={context} field={`${field}.name`} label={`Pin ${index + 1} name`} labelHidden mono
+                placeholder="NAME" value={pin.name} onChange={(event) => update(index, { name: event.target.value.toUpperCase() })} />
+              <Select className="pin-type" context={context} field={`${field}.type`} label={`Pin ${index + 1} type`} labelHidden dot={pinDots[pin.type]}
+                value={pin.type} onChange={(value) => {
+                  const type = value as Pin["type"];
+                  update(index, { type, pullUp: type === "Input" || type === "I/O" ? pin.pullUp : undefined });
+                }}>
+                {pinTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+              </Select>
+              <label className={`pin-pull ${canPullUp ? "" : "unavailable"}`} title={canPullUp ? undefined : "Only I/O and input pins take a pull-up"}>
+                <input {...pullUp.attrs} type="checkbox" checked={pin.pullUp ?? false} disabled={!canPullUp}
+                  aria-describedby={[pullUp.attrs["aria-describedby"], pullUpHint].filter(Boolean).join(" ") || undefined}
+                  onChange={(event) => update(index, { pullUp: event.target.checked })} />
+                Pull-up
+                <span className="visually-hidden"> on pin {index + 1}</span>
+                {pullUpHint && <span className="visually-hidden" id={pullUpHint}>
+                  {pin.pullUp ? "Set by the example for this open-drain output." : "Only I/O and input pins take a pull-up."}
+                </span>}
+              </label>
+              <div className="pin-actions">
+                <button type="button" className="icon-button" title="Move up" aria-label={`Move pin ${index + 1} up`}
+                  disabled={index === 0} onClick={() => move(index, -1)}><Icon name="up" /></button>
+                <button type="button" className="icon-button" title="Move down" aria-label={`Move pin ${index + 1} down`}
+                  disabled={index === pins.length - 1} onClick={() => move(index, 1)}><Icon name="down" /></button>
+                <button type="button" className="icon-button" title={pins.length <= min ? `A board needs at least ${min} pins` : "Remove pin"}
+                  aria-label={`Remove pin ${index + 1}`} disabled={pins.length <= min} onClick={() => remove(index)}><Icon name="close" /></button>
+              </div>
+              <div className="field pin-description">
+                <label htmlFor={description.attrs.id} className="visually-hidden">Pin {index + 1} description</label>
+                <textarea {...description.attrs} aria-required="true" rows={1} maxLength={description.guide?.maxLength}
+                  placeholder="What the pin does, and how to connect it" value={pin.description}
+                  onChange={(event) => update(index, { description: event.target.value })} />
+                {description.problems}
+              </div>
+              {pullUp.problems}
+            </li>
+          );
+        })}
+      </ol>
       <div {...list.attrs} tabIndex={-1} className="pin-list-footer">
         {list.problems}
         <button type="button" className="button button-secondary" disabled={pins.length >= max}
-          aria-describedby={pins.length >= max ? "pin-limit" : undefined} onClick={() => {
+          aria-describedby="pin-limit" onClick={() => {
             const key = Math.max(-1, ...pins.map((pin) => pin.key)) + 1;
             change([...pins, { key, name: "", description: "", type: "I/O" }]);
             focus(`pins[${pins.length}].name`);
           }}><Icon name="plus" /> Add pin</button>
-        <span className="field-hint" id="pin-limit">{pins.length >= max ? `The template allows up to ${max} pins.` : `${pins.length} of ${max} pins`}</span>
+        <span className="field-hint" id="pin-limit">{pins.length >= max ? `The template takes up to ${max} pins.` : `${pins.length} of up to ${max} pins`}</span>
       </div>
     </div>
   );
@@ -294,6 +292,10 @@ function BoardFields({ context, draft, change }: { context: Context; draft: Draf
 
 function BusFields({ context, draft, change }: { context: Context; draft: Draft; change: ChangeDraft }) {
   const { i2c } = draft;
+  // The template's rise-time refusal names both values: show it once, under both, rather than twice.
+  const riseProblem = context.diagnostics.find(({ code, field }) => code === "template/render" && field === "i2c.pullUpOhms");
+  const quiet = { ...context, diagnostics: context.diagnostics.filter((item) => item !== riseProblem) };
+  const riseAttrs = riseProblem ? { "aria-invalid": true, "aria-describedby": "i2c-rise-problem" } as const : {};
   const { riseNs, maxRiseNs } = i2cPullUp({ ...i2c, notes: [] });
   const ratio = riseNs / maxRiseNs;
   const pass = ratio <= 1;
@@ -305,21 +307,25 @@ function BusFields({ context, draft, change }: { context: Context; draft: Draft;
         {busModes.map((mode) => <option key={mode}>{mode}</option>)}
       </Select>
       <div className="field-grid">
-        <Input context={context} field="i2c.pullUpOhms" type="number" mono placeholder={i2c.mode === "Fast-mode Plus" ? "1000" : "2200"}
+        <Input context={quiet} {...riseAttrs} field="i2c.pullUpOhms" type="number" mono placeholder={i2c.mode === "Fast-mode Plus" ? "1000" : "2200"}
           value={i2c.pullUpOhms ?? ""} onChange={(event) => change({ i2c: { ...i2c, pullUpOhms: numberValue(event.target) } })} />
-        <Input context={context} field="i2c.busCapacitancePf" type="number" mono placeholder="100"
+        <Input context={quiet} {...riseAttrs} field="i2c.busCapacitancePf" type="number" mono placeholder="100"
           value={i2c.busCapacitancePf ?? ""} onChange={(event) => change({ i2c: { ...i2c, busCapacitancePf: numberValue(event.target) } })} />
       </div>
+      {riseProblem && <ul className="field-problems" id="i2c-rise-problem"><li>{plain(riseProblem.message)}</li></ul>}
       <div className={`rise-note ${time && !pass ? "attention" : ""}`} aria-live="polite">
         <div className="rise-header">
-          <span>Estimated rise time</span>
-          {time && <strong className="rise-result">{pass ? "Pass" : "Fail"}</strong>}
+          <span>Rise time on SCL and SDA</span>
+          {time && <strong className="rise-result">{pass ? "Within the limit" : `${(riseNs - maxRiseNs).toFixed(0)} ns over`}</strong>}
         </div>
-        <div className="rise-reading mono">{time ? `${time} ns` : "Enter valid values"} <span>/ {maxRiseNs} ns</span></div>
-        <div className="meter-track" aria-hidden="true">
-          <div className="meter-fill" style={{ width: `${time ? Math.min(ratio * 100, 100) : 0}%` }} />
+        <div className="rise-reading">{time ? `${time} ns` : "Enter a resistance and a capacitance"}</div>
+        <div className="meter" aria-hidden="true">
+          <div className="meter-track"><div className="meter-fill" style={{ width: `${time ? Math.min(ratio / 2, 1) * 100 : 0}%` }} /></div>
+          <span className="meter-limit" />
+          <div className="meter-ends"><span>0</span><span>{maxRiseNs * 2} ns</span></div>
+          <span className="meter-limit-label">{i2c.mode} limit, {maxRiseNs} ns</span>
         </div>
-        <div className="rise-formula"><span className="mono">t<sub>r</sub> ≈ 0.8473 × R × C</span><span>{i2c.mode} limit</span></div>
+        <p className="rise-formula"><span className="mono">t<sub>r</sub> ≈ 0.8473 × R × C</span>, as the I²C specification estimates it. The datasheet and the schematic use the same numbers.</p>
       </div>
     </>
   );
@@ -338,19 +344,19 @@ function ExportFields({ context, draft, change, format, setFormat, advancedOpen,
       <div className="download-buttons">
         <button type="button" id="tour-download" className="button button-primary" aria-disabled={!canExport || !!exporting}
           onClick={() => { if (canExport && !exporting) download("pdf"); }}>
-          <Icon name="download" /> {exporting === "pdf" ? "Preparing PDF…" : "Download PDF"}
+          <Icon name="download" /> {exporting === "pdf" ? "Preparing the PDF…" : `Download PDF (${paperLabels[format]})`}
         </button>
         <button type="button" className="button button-secondary" disabled={!canExport || !!exporting} onClick={() => download("values")}>
-          <Icon name="file" /> {exporting === "values" ? "Preparing values…" : "Download values file"}
+          <Icon name="file" /> {exporting === "values" ? "Preparing the values file…" : "Download values file"}
         </button>
       </div>
-      <p className="field-hint">Save the values file in <code>designs/</code> in this repository.</p>
+      <p className="field-hint">The values file is this datasheet as data. Save it in the repository's <code>designs/</code> folder to check and render it from the command line:</p>
       <pre className="cli"><code>{`npx hyper-elements check designs/${file}\nnpm run build -- designs/${file}`}</code></pre>
       <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)} className="advanced">
-        <summary>Everything else (JSON)<Icon name="chevron" /></summary>
+        <summary>Edit everything else as JSON<Icon name="chevron" /></summary>
         <div className="advanced-body">
           <label htmlFor="advanced">Additional template values</label>
-          <p className="field-hint" id="advanced-hint">Edit features, test data, ordering, revision history and application notes here.</p>
+          <p className="field-hint" id="advanced-hint">Features, ratings, characteristics, test curves, ordering, revision history and application notes.</p>
           <textarea {...advanced.attrs} aria-describedby={["advanced-hint", advanced.attrs["aria-describedby"]].filter(Boolean).join(" ")}
             rows={14} spellCheck={false} autoCapitalize="off" className="mono" value={draft.advanced}
             onChange={(event) => change({ advanced: event.target.value })} />
@@ -381,11 +387,11 @@ export function StepFields({ step, context, draft, change, example, choose, rese
 
 export function stepGuidance(step: Step, guides: FieldGuides): string {
   switch (step) {
-    case "Start": return "Choose an example to use as the starting point for your datasheet.";
+    case "Start": return "Pick a part to start from. You can change everything about it in the next steps.";
     case "Part": return guides.summary.guidance ?? "Fill in the details shown on the first page.";
-    case "Pins": return "The board drawing, the pin table and the schematic all redraw from this list.";
+    case "Pins": return "List the pads in order. The board drawing, the pin table and the schematic all redraw from this list.";
     case "Board": return guides.board.guidance ?? "Set the dimensions and the edges that carry the pads.";
     case "I²C bus": return guides["i2c.mode"].guidance ?? "Set the mode and calculate the rise time for the bus.";
-    case "Export": return "Choose a paper size, then download a PDF or a reusable values file.";
+    case "Export": return "Download the PDF, or the values file to keep the datasheet with your code.";
   }
 }

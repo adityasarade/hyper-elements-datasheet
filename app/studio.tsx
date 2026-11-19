@@ -56,6 +56,8 @@ export default function Studio({ initial, guides }: { initial: CheckResponse; gu
   const [lastGood, setLastGood] = useState(baseline.sheet);
   const [result, setResult] = useState({ body: baseline.body, response: initial });
   const [retry, setRetry] = useState(0);
+  // Counts the checked redraws a change caused, so the preview can mark what redrew.
+  const [pulse, setPulse] = useState(0);
   const focusFrame = useRef(0);
   const tourOrigin = useRef<{ destination: Destination; pane: Pane; focus: string }>(null);
 
@@ -109,7 +111,10 @@ export default function Studio({ initial, guides }: { initial: CheckResponse; gu
         if (controller.signal.aborted) return;
         setResult({ body, response: checked });
         const sheet = previewSheet(checked, format);
-        if (sheet) setLastGood(sheet);
+        if (sheet) {
+          setLastGood(sheet);
+          setPulse((count) => count + 1);
+        }
       } catch {
         if (!controller.signal.aborted) setResult({ body, response: networkError() });
       }
@@ -228,10 +233,20 @@ export default function Studio({ initial, guides }: { initial: CheckResponse; gu
     <>
       <header className="studio-header">
         <div className="header-inner">
-          <div className="brand"><WrenMark /><span>Wren Instruments</span></div>
-          <h1>Datasheet studio</h1>
-          <button type="button" className="button button-secondary how-button" id="how-it-works" aria-haspopup="dialog"
-            onClick={() => startTour(false)}><Icon name="help" /> How it works</button>
+          <div className="brand"><WrenMark /><h1>Datasheet studio</h1></div>
+          <p className="document-id" aria-label="Datasheet being edited">
+            <strong>{draft.part || "Untitled"}</strong>
+            <span>{draft.name}{draft.revision ? `, revision ${draft.revision}` : ""}</span>
+          </p>
+          <div className="header-actions">
+            <button type="button" className="button button-quiet how-button" id="how-it-works" aria-haspopup="dialog"
+              onClick={() => startTour(false)}><Icon name="help" /><span>How it works</span></button>
+            <button type="button" className="button button-primary" aria-disabled={!current?.valid || !!exporting}
+              title={current?.valid ? undefined : "Fix the problems the checker found to download"}
+              onClick={() => { if (current?.valid && !exporting) download("pdf"); }}>
+              <Icon name="download" /> {exporting === "pdf" ? "Preparing…" : "Download PDF"}
+            </button>
+          </div>
         </div>
       </header>
       <main className="workspace" data-pane={pane}>
@@ -240,10 +255,7 @@ export default function Studio({ initial, guides }: { initial: CheckResponse; gu
           <button type="button" aria-pressed={pane === "preview"} onClick={() => setPane("preview")}>Preview</button>
         </div>
         <section className="editor-panel" aria-labelledby="editor-title" id="tour-steps">
-          <div className="editor-heading">
-            <h2 id="editor-title">Editor</h2>
-            <span className="editor-progress mono">Step {steps.indexOf(step) + 1} of {steps.length}</span>
-          </div>
+          <h2 id="editor-title" className="visually-hidden">Edit the datasheet, step by step</h2>
           <ol className="stepper" aria-label="Datasheet editing steps">
             {steps.map((item, index) => {
               const active = item === step;
@@ -277,7 +289,7 @@ export default function Studio({ initial, guides }: { initial: CheckResponse; gu
                         canExport={!!current?.valid} download={download} exporting={exporting} downloadMessage={downloadMessage} />
                       {item !== "Export" && <div className="step-navigation">
                         <button type="button" className="button button-primary" onClick={() => openStep(steps[index + 1], true)}>
-                          Next <Icon name="arrow" />
+                          Next: {steps[index + 1]}
                         </button>
                       </div>}
                     </div>}
@@ -287,7 +299,7 @@ export default function Studio({ initial, guides }: { initial: CheckResponse; gu
             })}
           </ol>
         </section>
-        <Preview sheet={lastGood} destination={destination} format={format} onFormat={setFormat}
+        <Preview sheet={lastGood} destination={destination} format={format} onFormat={setFormat} pulse={pulse}
           checking={checking} problems={problems.length} stale={"error" in assembled || current?.valid === false} openChecks={() => setOverlay("checks")} />
       </main>
       {overlay === "welcome" && <Welcome beginTour={() => startTour(true)} close={closeOverlay} />}

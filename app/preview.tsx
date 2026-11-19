@@ -13,7 +13,27 @@ const previewHead = `<meta http-equiv="Content-Security-Policy" content="default
   html, body { background: transparent !important; padding: 0 !important; margin: 0 !important; overflow: hidden; }
   main { display: flow-root; }
   .elements-page { box-shadow: none !important; }
+  .studio-flash { outline: 2px solid #a9471f; outline-offset: 5px; border-radius: 2px; animation: studio-flash 1.8s ease-out forwards; }
+  @keyframes studio-flash { 0%, 45% { outline-color: rgba(169,71,31,1); } 100% { outline-color: rgba(169,71,31,0); } }
+  @media (prefers-reduced-motion: reduce) { .studio-flash { animation: none; outline: none; } }
 </style>`;
+
+/** What a change in each step redraws: marked for a moment after the new datasheet arrives. */
+const redraws: Partial<Record<Step, (document: Document) => Element[]>> = {
+  Start: (document) => [...figures(document, ['svg[aria-label*=" from above at "]', 'svg[aria-label^="A typical application"]']), ...pinTable(document)],
+  Pins: (document) => [...figures(document, ['svg[aria-label*=" from above at "]', 'svg[aria-label^="A typical application"]', 'svg[aria-label*=" outline at "]']), ...pinTable(document)],
+  Board: (document) => figures(document, ['svg[aria-label*=" from above at "]', 'svg[aria-label*=" outline at "]']),
+  "I²C bus": (document) => figures(document, ['svg[aria-label^="I²C timing:"]', 'svg[aria-label^="A typical application"]']),
+};
+
+function figures(document: Document, selectors: string[]) {
+  return selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+}
+
+/** The pin table: the one whose header names a type column. */
+function pinTable(document: Document) {
+  return Array.from(document.querySelectorAll("table")).filter((table) => /\btype\b/i.test(table.rows[0]?.textContent ?? "")).slice(0, 1);
+}
 
 const stepFigures: Partial<Record<Step, string>> = {
   Pins: 'svg[aria-label*=" from above at "]',
@@ -21,10 +41,11 @@ const stepFigures: Partial<Record<Step, string>> = {
   "I²C bus": 'svg[aria-label^="I²C timing:"]',
 };
 
-export default function Preview({ sheet, destination, format, onFormat, checking, problems, stale, openChecks }: {
+export default function Preview({ sheet, destination, format, onFormat, checking, problems, stale, openChecks, pulse }: {
   sheet: PreviewSheet | null; destination: Destination; format: Paper; onFormat: (format: Paper) => void;
-  checking: boolean; problems: number; stale: boolean; openChecks: () => void;
+  checking: boolean; problems: number; stale: boolean; openChecks: () => void; pulse: number;
 }) {
+  const flashed = useRef(pulse);
   const frame = useRef<HTMLIFrameElement>(null);
   const lane = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
@@ -81,6 +102,14 @@ export default function Preview({ sheet, destination, format, onFormat, checking
     return () => { active = false; cancelAnimationFrame(animation); };
   }, [available, chosenPage, destination, loaded, pageHeight, scale, sheet]);
 
+  // Once the redrawn datasheet has loaded, mark what the change redrew: once per checked redraw.
+  useLayoutEffect(() => {
+    const document = frame.current?.contentDocument;
+    if (!document?.body || flashed.current === pulse) return;
+    flashed.current = pulse;
+    for (const element of redraws[destination.step]?.(document) ?? []) element.classList.add("studio-flash");
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function onScroll() {
     const element = viewport.current;
     if (!element || offsets.current.length < 2) return;
@@ -114,55 +143,50 @@ export default function Preview({ sheet, destination, format, onFormat, checking
     document.getElementById(`page-tab-${next}`)?.focus();
   }
 
-  const status = problems ? `${problems} ${problems === 1 ? "problem" : "problems"}` : checking ? "Checking…" : "Checked · 0 problems";
+  const status = problems ? `${problems} ${problems === 1 ? "problem" : "problems"} to fix` : checking ? "Checking" : "Checked, no problems";
   const height = pageHeight || (sheet?.format === "letter" ? 1056 : 1122.52) * pages + Math.max(0, pages - 1) * 24;
   const activeTab = Math.min(selected, pages - 1);
 
   return (
-    <section className="preview-panel" aria-label="Live preview">
+    <section className="preview-panel" aria-labelledby="preview-title">
+      <h2 id="preview-title" className="visually-hidden">Live datasheet</h2>
       <div className="preview-controls" id="tour-preview">
-        <div className="preview-heading">
-          <h2>Live preview</h2>
+        <div className="sheet-tabs">
+          <span className="sheet-label" id="sheet-label">Sheet</span>
+          {pages > 0 && <div role="tablist" aria-labelledby="sheet-label" className="page-tabs">
+            {Array.from({ length: pages }, (_, index) => (
+              <button key={index} id={`page-tab-${index}`} type="button" role="tab" aria-selected={index === activeTab}
+                aria-controls="preview-pages" aria-label={`Sheet ${index + 1} of ${pages}`} tabIndex={index === activeTab ? 0 : -1}
+                onClick={() => choosePage(index)} onKeyDown={(event) => tabKeys(event, index)}>
+                {index + 1}
+              </button>
+            ))}
+          </div>}
+        </div>
+        <div className="preview-tools">
+          <PaperSize format={format} onChange={onFormat} label="Paper size" />
           <button id="checks-trigger" type="button" className={`status-chip ${problems ? "has-problems" : checking ? "is-checking" : "is-clear"}`}
             aria-haspopup="dialog" onClick={openChecks}>
             {problems || checking ? <span className="status-dot" aria-hidden="true" /> : <Icon name="check" />}
             <span aria-live="polite">{status}</span>
-            <Icon name="chevron" />
           </button>
-        </div>
-        <div className="preview-toolbar">
-          <div className="page-controls">
-            {pages > 0 && <div role="tablist" aria-label="Datasheet pages" className="page-tabs">
-              {Array.from({ length: pages }, (_, index) => (
-                <button key={index} id={`page-tab-${index}`} type="button" role="tab" aria-selected={index === activeTab}
-                  aria-controls="preview-pages" aria-label={`Page ${index + 1} of ${pages}`} tabIndex={index === activeTab ? 0 : -1}
-                  onClick={() => choosePage(index)} onKeyDown={(event) => tabKeys(event, index)}>
-                  {index + 1}
-                </button>
-              ))}
-            </div>}
-          </div>
-          <PaperSize format={format} onChange={onFormat} label="Preview paper size" />
         </div>
       </div>
       <div ref={viewport} className="preview-viewport" id="preview-pages"
         role={pages > 0 ? "tabpanel" : undefined} aria-labelledby={pages > 0 ? `page-tab-${activeTab}` : undefined} aria-busy={checking}
         tabIndex={0} onScroll={onScroll}>
+        {stale && sheet && <p className="stale-note" role="status">Showing the last version that passed. Fix the {problems === 1 ? "problem" : "problems"} to update it.</p>}
         <div className="preview-lane" ref={lane}>
           {source && available > 0 ? (
             <div className={`preview-paper ${stale ? "stale" : ""}`} style={{ width: width * scale, height: height * scale }}>
-              <iframe ref={frame} srcDoc={source} sandbox="allow-same-origin" title="Print preview of the datasheet"
+              <iframe ref={frame} srcDoc={source} sandbox="allow-same-origin" title={`Print preview of the datasheet, ${paperLabels[sheet!.format]}`}
                 tabIndex={-1} onLoad={() => setLoaded((current) => current + 1)}
                 style={{ width, height, transform: `scale(${scale})` }} />
             </div>
           ) : (
-            <div className="preview-placeholder">{checking ? "Checking the datasheet…" : "A checked datasheet will appear here."}</div>
+            <div className="preview-placeholder">{checking ? "Checking the datasheet" : "The checked datasheet appears here."}</div>
           )}
         </div>
-      </div>
-      <div className="preview-footer">
-        <span>{pages > 0 ? `Page ${activeTab + 1} of ${pages}` : "No pages"}{sheet && ` · ${paperLabels[sheet.format]}`}</span>
-        <span role="status">{checking ? "Updating…" : stale && sheet ? "Showing the last checked preview" : ""}</span>
       </div>
     </section>
   );

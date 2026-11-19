@@ -10,18 +10,22 @@ A small hardware company publishes a datasheet for every part and every revision
 
 ## Try it in the browser
 
-Open [Datasheet studio](https://<your-vercel-url>) to edit the WR-2 or WR-4, check the preview, and download a PDF or a Hyper Elements values file.
+**[Open Datasheet studio](https://<your-vercel-url>)**: start from the WR-2 or the WR-4, change its part details,
+pins, board and I²C bus in six guided steps, and watch the datasheet redraw as you type. Every change goes through
+the template's own `check()`, so a value it would refuse (a board too short for its pads, pull-ups too strong for the
+bus) is named at its field before anything is drawn. Download the PDF in A4 or Letter, or the values file to use
+with the command line below.
 
-![Datasheet studio showing the guided editor and live print preview](docs/studio.png)
+![Datasheet studio: the guided steps on the left with the pin list open, and the live datasheet on the right, its board drawing and pin table drawn from those pins.](docs/studio.jpg)
 
-Run the studio locally from this repository.
+The studio is a Next.js app in `app/`. Its two routes call the same template the command line uses:
+`/api/check` runs `check(values, { format })` and returns the print HTML and every diagnostic with its field, and
+`/api/pdf` runs `renderPdf()` on the checked design. Run it locally:
 
 ```sh
 npm ci
-npm run studio
+npm run studio        # http://localhost:3000
 ```
-
-Open [localhost:3000](http://localhost:3000). Save downloaded values files in `designs/` to use them with the CLI.
 
 ## Use it
 
