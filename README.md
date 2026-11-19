@@ -1,6 +1,6 @@
 # Wren WR-2 datasheet
 
-**A sensor datasheet with a board drawing, pin table and schematic driven by one pin list, and the part number and revision on every page.**
+**A Hyper Elements template for a hardware part's datasheet: the board drawing, pin table and schematic driven by one pin list, and the part number and revision on every page.**
 
 [![Page one detail showing the WR-2 board drawing with six numbered callouts and the matching pin table](docs/page-one-detail.jpg)](docs/page-1.jpg)
 
