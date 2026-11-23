@@ -48,7 +48,7 @@ the template's own `check()`, so a value it would refuse (a board too short for 
 bus) is named at its field before anything is drawn. Download the PDF in A4 or Letter, or the values file to use
 with the command line below.
 
-![Datasheet studio in use: a pin renamed to SDATA redraws the board and the pin table, then pull-ups too strong for the bus are refused with the reason, and fixed.](docs/studio.gif)
+![Datasheet studio in use: pin 4 renamed to DATA redraws the board and the pin table, then pull-ups too strong for the bus are refused with the reason, and fixed.](docs/studio.gif)
 
 ![Datasheet studio: the guided steps on the left with the pin list open, and the live datasheet on the right, its board drawing and pin table drawn from those pins.](docs/studio.jpg)
 
