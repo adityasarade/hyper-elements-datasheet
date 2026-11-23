@@ -34,6 +34,10 @@ $ bash scripts/verify-in-gallery.sh
 
 To add it to the gallery, copy `community-template/` into the repository's `templates/`.
 
+It in the gallery's own website, built locally with the template added: under **PDFs**, beside Stripe's invoice and Airbnb's receipt.
+
+![The Hyper Elements templates page, PDFs selected, with the WR-2 datasheet in Oyen's brand beside the official invoice and receipt templates.](docs/official-gallery.jpg)
+
 [All nine brands side by side](docs/ds-nine-brands.jpg)
 
 ## Try it in the browser
@@ -43,6 +47,8 @@ pins, board and I²C bus in six guided steps, and watch the datasheet redraw as 
 the template's own `check()`, so a value it would refuse (a board too short for its pads, pull-ups too strong for the
 bus) is named at its field before anything is drawn. Download the PDF in A4 or Letter, or the values file to use
 with the command line below.
+
+![Datasheet studio in use: a pin renamed to SDATA redraws the board and the pin table, then pull-ups too strong for the bus are refused with the reason, and fixed.](docs/studio.gif)
 
 ![Datasheet studio: the guided steps on the left with the pin list open, and the live datasheet on the right, its board drawing and pin table drawn from those pins.](docs/studio.jpg)
 
