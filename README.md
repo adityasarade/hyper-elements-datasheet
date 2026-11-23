@@ -2,11 +2,39 @@
 
 **A Hyper Elements template for a hardware part's datasheet: the board drawing, pin table and schematic driven by one pin list, and the part number and revision on every page.**
 
+**[Try it live: Datasheet studio](https://hyper-elements-datasheet.vercel.app)** · [In the official templates folder, tested in all nine sample brands](#in-the-official-templates-folder-in-all-nine-sample-brands)
+
 [![Page one detail showing the WR-2 board drawing with six numbered callouts and the matching pin table](docs/page-one-detail.jpg)](docs/page-1.jpg)
 
 [![All four A4 pages side by side. Overview, electrical characteristics, I²C interface and typical application, and mechanical and ordering information.](docs/hero.jpg)](docs/hero.jpg)
 
 A small hardware company publishes a datasheet for every part and every revision. Laid out by hand, the pin table and the board drawing drift apart. Here the datasheet is data: the pins, ratings, characteristics and board size are values, and every drawing is made from them. Change a pin and the board drawing, the pin table and the schematic change together. The same values render on A4 and on Letter.
+
+## In the official templates folder, in all nine sample brands
+
+On 23 November the Hyper Elements team rebuilt their gallery around a `templates/` folder anyone can contribute to,
+where each template is made from a brand and tested in all nine sample brands. This one is ported to that format:
+[`community-template/documents/datasheet/`](community-template/documents/datasheet/template.tsx) is `datasheet(brand)`, which takes every
+color, font and logo from the brand it's given and sets none of its own: the board drawing in the brand's colors (its primary for the pads and signal), the timing diagram, the schematic, the outline and the tables in its fonts, its logo in every page header, and its name in the drawing's title block. Its default brand is
+Oyen, the sample hardware maker, and its two designs are in `designs/`.
+
+![The same template in each of the nine sample brands: Oyen, Orbit, Quarry, Pith, Ember, Casa Albero, Keel, Pell & Ashby and Slow Signals.](docs/ds-nine-brands.gif)
+
+The gallery's own test checks the template's example and both designs against its fields and rules, and renders them,
+in every brand. To run it yourself from a fresh clone of the official repository:
+
+```
+$ bash scripts/verify-in-gallery.sh
+ ✓ documents/datasheet > has designs
+ ✓ documents/datasheet > passes its check in casa-albero, with its example and each design
+ ✓ documents/datasheet > passes its check in ember, with its example and each design
+   … keel, orbit, oyen, pell-ashby, pith, quarry, slow-signals
+ Tests  11 passed
+```
+
+To add it to the gallery, copy `community-template/` into the repository's `templates/`.
+
+[All nine brands side by side](docs/ds-nine-brands.jpg)
 
 ## Try it in the browser
 
